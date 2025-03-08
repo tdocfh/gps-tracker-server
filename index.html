@@ -1,46 +1,75 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Live GPS Tracker</title>
-    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS Tracker - Live Location</title>
+    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY"></script>
     <style>
-        #map { height: 500px; width: 100%; }
+        #map {
+            height: 500px;
+            width: 100%;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
-    <h2>Live GPS Tracker</h2>
+    <h2>📍 Live GPS Tracker</h2>
     <div id="map"></div>
+    <p>Last Updated: <span id="timestamp">Loading...</span></p>
+
     <script>
-        var map = L.map('map').setView([0, 0], 2);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
+        // GitHub Raw Data URL for gps_data.json
+        const GITHUB_USERNAME = "tdocfh";
+        const GITHUB_REPO = "gps-tracker-server";
+        const FILE_PATH = "gps_data.json";
+        const API_URL = `https://raw.githubusercontent.com/${GITHUB_USERNAME}/${GITHUB_REPO}/main/${FILE_PATH}`;
 
-        var markers = [];
+        let map, marker;
 
-        function fetchLocations() {
-            fetch("https://raw.githubusercontent.com/YOUR_USERNAME/gps-tracker/main/gps_data.json")
+        function fetchGPSData() {
+            fetch(API_URL)
                 .then(response => response.json())
                 .then(data => {
-                    markers.forEach(marker => map.removeLayer(marker));
-                    markers = [];
+                    const latestEntry = data[data.length - 1]; // Get the latest GPS update
+                    const lat = latestEntry.lat;
+                    const lon = latestEntry.lon;
+                    const timestamp = latestEntry.timestamp;
 
-                    data.forEach(loc => {
-                        var marker = L.marker([loc.lat, loc.lon]).addTo(map);
-                        marker.bindPopup(`Lat: ${loc.lat}, Lon: ${loc.lon}, Time: ${loc.timestamp}`);
-                        markers.push(marker);
-                    });
+                    document.getElementById("timestamp").innerText = timestamp;
 
-                    if (markers.length > 0) {
-                        map.setView([markers[markers.length - 1].getLatLng().lat, markers[markers.length - 1].getLatLng().lng], 14);
-                    }
+                    // Update Google Maps
+                    updateMap(lat, lon);
                 })
-                .catch(error => console.error("Error fetching data:", error));
+                .catch(error => console.error("❌ Failed to fetch GPS data:", error));
         }
 
-        fetchLocations();
-        setInterval(fetchLocations, 30000);  // Refresh every 30 seconds
+        function updateMap(lat, lon) {
+            const location = { lat: parseFloat(lat), lng: parseFloat(lon) };
+
+            if (!map) {
+                map = new google.maps.Map(document.getElementById("map"), {
+                    zoom: 15,
+                    center: location,
+                });
+                marker = new google.maps.Marker({
+                    position: location,
+                    map: map,
+                });
+            } else {
+                marker.setPosition(location);
+                map.setCenter(location);
+            }
+        }
+
+        // Refresh GPS data every 30 seconds
+        setInterval(fetchGPSData, 30000);
+
+        // Load the latest data when the page loads
+        fetchGPSData();
     </script>
 </body>
 </html>
